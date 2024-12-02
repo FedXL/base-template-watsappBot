@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data_tech:/var/lib/postgresql/data/
+    environment:
+      POSTGRES_DB: tech
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: 127238
+    expose:
+      - "5432"
+  web:
+    build: .
+    command: >
+      sh -c "
+        python manage.py makemigrations &&
+        python manage.py migrate &&
+        python manage.py collectstatic --noinput &&
+        gunicorn stations.wsgi:application --bind 0.0.0.0:8000 --workers 2
+      "
+    volumes:
+      - ./.env:/app/.env
+      - static_volume_tech:/var/www/static
+      - media_volume_tech:/var/www/media
+    expose:
+      - "8000"
+
+    depends_on:
+      - db
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+    depends_on:
+      - web
+      - db
+    volumes:
+      - static_volume_tech:/var/www/static
+      - media_volume_tech:/var/www/media
+      - ./nginx:/etc/nginx/conf.d
+volumes:
+  postgres_data_tech:
+  static_volume_tech:
+  media_volume_tech:
