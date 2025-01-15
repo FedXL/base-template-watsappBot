@@ -3,8 +3,9 @@ from django.db import models
 
 
 class Client(models.Model):
-    phone = models.CharField(max_length=30, verbose_name="Телефон", unique=True)
+    phone = models.CharField(max_length=30, verbose_name="Телефон", unique=True,null=True)
     username = models.CharField(max_length=150, verbose_name="WatsApp Username")
+    session = models.CharField(max_length=150, verbose_name="Сессия", null=True, blank=True)
     last_visit = models.DateTimeField(auto_now=True, verbose_name="Последний визит")
     first_visit = models.DateTimeField(auto_now_add=True, verbose_name="Первый визит")
     comment = models.TextField(null=True, blank=True, verbose_name='Комментарии о посетителе',

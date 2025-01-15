@@ -9,7 +9,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 VERSION = os.getenv('VERSION')
 
 if VERSION == 'deploy':
-    DEBUG = False
+    DEBUG = True
     ALLOWED_HOSTS = ['nurbot.kz','www.nurbot.kz']
     CSRF_TRUSTED_ORIGINS = ['https://nurbot.kz', 'https://www.nurbot.kz']
 elif VERSION == 'development':
@@ -116,4 +116,32 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.TokenAuthentication',
     ],
+}
+TIME_ZONE='Asia/Almaty'
+
+LANGUAGE_CODE= 'ru-ru'
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'DEBUG',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',  # Set to INFO to reduce verbosity
+            'propagate': True,
+        },
+        'django.db.backends': {
+            'handlers': ['console'],
+            'level': 'WARNING',  # Set to WARNING to reduce database logs
+            'propagate': False,
+        },
+    },
 }
