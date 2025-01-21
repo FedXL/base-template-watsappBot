@@ -1,9 +1,16 @@
 import logging
+
+from django.conf import settings
+from django.db import transaction
+from rest_framework.mixins import CreateModelMixin
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.status import is_success
 from rest_framework.views import APIView
-from api_backend.models import MenuBlock, InfoBlock, Variables
+from api_backend.models import MenuBlock, InfoBlock, Variables, ProductBlock
+from api_backend.utils import infoblock_serializer, client_card_serializer, create_product_block_data
 from clients.models import Client
+from shop.models import Cart
 
 
 class HelloApiView(APIView):
@@ -24,6 +31,7 @@ class CollectClientData(APIView):
     logger = logging.getLogger('Views| collect client data')
 
     def post(self, request):
+        message=None
         self.logger.info(f'Collecting client data... {request.data}')
         phone = request.data.get('phone')
         session_v = request.data.get('session')
@@ -36,14 +44,21 @@ class CollectClientData(APIView):
             username = 'Tester'
             phone = '1234567890'
 
-        client, created = Client.objects.update_or_create(
-            phone=phone,
-            defaults={
-                'username': username,
-                'session': session_v,
-            }
-        )
-        message = 'Client created!' if created else 'Client updated!'
+        try:
+            with transaction.atomic():
+                client, created = Client.objects.update_or_create(
+                    phone=phone,
+                    defaults={
+                        'username': username,
+                        'session': session_v,
+                    }
+                )
+                if created:
+                    Cart.objects.create(client=client)
+        except Exception as e:
+            message = f'Error: {e}'
+        if not message:
+            message = 'Client created!' if created else 'Client updated!'
         return Response({'message': message})
 
 def menu_serializer(menu, language):
@@ -74,43 +89,6 @@ def menu_serializer(menu, language):
     menu_buttons['rows'] = rows
     return menu_block, menu_buttons
 
-def infoblock_serializer(infoblock_name, language, for_operator_link = False)-> tuple:
-    infoblock_obj = InfoBlock.objects.filter(name=infoblock_name).first()
-
-    if not infoblock_obj:
-        False, False
-
-    infoblock_block = infoblock_obj.block_to_dict(language)
-    menu = infoblock_obj.info_button_reverse.menu
-    create_menu_text = 'create_menu_' + menu.name
-
-    if language == 'rus':
-        operator = Variables.objects.filter(name='operator').first().rus
-        comeback = Variables.objects.filter(name='comeback').first().rus
-    else:
-        operator = Variables.objects.filter(name='operator').first().kaz
-        comeback = Variables.objects.filter(name='comeback').first().kaz
-
-    if for_operator_link:
-        buttons = [
-            {
-                "title": comeback,
-                "value": create_menu_text
-            }
-        ]
-    else:
-        buttons = [
-            {
-                "title": operator,
-                "value": f"create_operator_link_from_{infoblock_name}"
-            },
-            {
-                "title": comeback,
-                "value": create_menu_text
-            }
-        ]
-    return infoblock_block , buttons
-
 class SummonBlockApiView(APIView):
     permission_classes = [IsAuthenticated]
     logger = logging.getLogger('Views| Summon')
@@ -119,8 +97,11 @@ class SummonBlockApiView(APIView):
         result_data = {}
         action = request.data.get('what_next')
         language = request.data.get('language')
-
+        user_phone = request.data.get('user_phone', None)
+        if not user_phone or user_phone == 'None':
+            user_phone = '1234567890'
         if "create_menu" in action:
+            """основная фишка что в меню будет список из кнопок"""
             self.logger.info(f'Creating menu {action}')
             menu_result = {}
             result_data['what_next'] = action
@@ -132,20 +113,111 @@ class SummonBlockApiView(APIView):
             menu_result['menu_buttons'] = [menu_buttons]
             result_data['menu'] = menu_result
             return Response(result_data, status=200)
+
+
         elif 'create_infoblock' in action:
+            """основная фишка что в меню три кнопки будет"""
             self.logger.info(f'Creating infoblock {action}')
             infoblock_result = {}
             result_data['what_next'] = action
             name_infoblock = action.replace('create_infoblock_', '')
-            infoblock_block,buttons=infoblock_serializer(name_infoblock,language)
+            infoblock_block, buttons = infoblock_serializer(name_infoblock,language)
             infoblock_result['infoblock_block'] = infoblock_block
             infoblock_result['buttons'] = buttons
             result_data['infoblock'] = infoblock_result
             return Response(result_data, status=200)
+
+        elif 'create_productblock_' in action:
+            """основная фишка что в меню две (три) кнопки будет по управлению корзиной"""
+            self.logger.info(f'Creating product {action}')
+            result_data['what_next'] = action
+            product_name = action.replace('create_productblock_', '')
+            result_data['product_name'] = product_name
+            is_success, comment_or_result = create_product_block_data(action=action,
+                                                                     language=language,
+                                                                     user_phone=user_phone,
+                                                                     result_data=result_data)
+            if not is_success:
+                return Response({'message': comment_or_result}, status=404)
+            return Response(comment_or_result, status=200)
+        elif 'add_to_cart_' in action:
+            self.logger.info(f'Adding to cart {action}')
+            product_name = action.replace('add_to_cart_', '')
+            result_data['product_name'] = product_name
+            result_data['what_next'] = 'create_productblock_' + product_name
+            client = Client.objects.filter(phone=user_phone).first()
+            cart = client.cart_related
+            product = ProductBlock.objects.filter(product_name=product_name).first()
+            if not product:
+                return Response({'message': 'Product not found!'}, status=404)
+            cart_item, created = cart.cart_items.get_or_create(product=product)
+            if not created:
+                cart_item.quantity += 1
+                cart_item.save()
+            is_success, comment_or_result = create_product_block_data(action=action,
+                                                                        language=language,
+                                                                        user_phone=user_phone,
+                                                                        result_data=result_data)
+            if not is_success:
+                return Response({'message': comment_or_result}, status=404)
+            return Response(comment_or_result, status=200)
+
+        elif 'remove_from_cart_' in action:
+            self.logger.info(f'Removing from cart {action}')
+            product_name = action.replace('remove_from_cart_', '')
+            result_data['product_name'] = product_name
+            result_data['what_next'] = 'create_productblock_' + product_name
+            client = Client.objects.filter(phone=user_phone).first()
+            cart = client.cart_related
+            cart_item = cart.cart_items.filter(product__product_name=product_name).first()
+            if not cart_item:
+                return Response({'message': 'Product not found in cart!'}, status=404)
+            if cart_item.quantity > 1:
+                cart_item.quantity -= 1
+                cart_item.save()
+            else:
+                cart_item.delete()
+            is_success, comment_or_result = create_product_block_data(action=action,
+                                                                        language=language,
+                                                                        user_phone=user_phone,
+                                                                        result_data=result_data)
+            if not is_success:
+                return Response({'message': comment_or_result}, status=404)
+            return Response(comment_or_result, status=200)
+
+        elif 'create_special_menu_' in action:
+            self.logger.info(f'Creating special menu {action}')
+            what_kind_of_special = action.replace('create_special_menu_', '')
+            self.logger.info(f'Creating special menu {what_kind_of_special}')
+            result_data['what_next'] = 'create_menu_cart'
+            client = Client.objects.filter(phone=user_phone).first()
+            cart_buttons = client.cart_related.shopping_card_buttons(language)
+            content = client.cart_related.shopping_card_content()
+            result_data['menu']= {
+                "menu_block": {
+                    "header": "Корзина",
+                    "body": f'Содержимое корзины {str(content)}',
+                    "footer": 'заказать или очистить корзину',
+                    "list_title": "Меню",
+                    "section_title": "Меню"
+                },
+                "menu_buttons": [cart_buttons]
+            }
+
+
+
+            return Response(result_data, status=200)
+
+
         elif action == 'to_language_choice':
             self.logger.info(f'Going to language choice')
             result_data['what_next'] = action
             return Response(result_data, status=200)
+
+
+
+
+
         elif "create_operator_link_from_" in action:
             self.logger.info(f'Creating operator link from {action}')
             result_data['what_next'] = action
@@ -178,10 +250,15 @@ class SummonBlockApiView(APIView):
                 'infoblock_block': {'header': operator_header, 'footer': operator_footer}
             }
             return Response(result_data, status=200)
+
+
+
         else:
             return Response({'message': 'Action not found!'}, status=404)
 
 
             
 
-
+class IsDead(APIView):
+    def get(self, request):
+        return Response({'message': 'I am not dead!'})

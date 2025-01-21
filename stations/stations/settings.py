@@ -8,12 +8,17 @@ load_dotenv(BASE_DIR / '.env')
 SECRET_KEY = os.getenv('SECRET_KEY')
 VERSION = os.getenv('VERSION')
 
+
+
+
 if VERSION == 'deploy':
     DEBUG = True
     ALLOWED_HOSTS = ['nurbot.kz','www.nurbot.kz']
     CSRF_TRUSTED_ORIGINS = ['https://nurbot.kz', 'https://www.nurbot.kz']
+    HOST_PREFIX = 'https://nurbot.kz'
 elif VERSION == 'development':
     DEBUG = True
+    HOST_PREFIX = ''
 else:
     raise ValueError('VERSION can be either DEV or DEPLOY')
 
@@ -29,6 +34,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'api_backend.apps.ApiBackendConfig',
     'clients.apps.ClientsConfig',
+    'shop.apps.ShopConfig',
 ]
 
 MIDDLEWARE = [
@@ -99,8 +105,8 @@ USE_TZ = True
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 if VERSION == 'deploy':
-    FORCE_SCRIPT_NAME = '/tech/'
-    BASE_URL = '/tech'
+    FORCE_SCRIPT_NAME = '/water/'
+    BASE_URL = '/water'
     MEDIA_URL = BASE_URL + '/media/'
     STATIC_URL =BASE_URL + '/static/'
 elif VERSION == 'development':
@@ -145,3 +151,5 @@ LOGGING = {
         },
     },
 }
+
+

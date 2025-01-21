@@ -1,5 +1,5 @@
 from django.urls import path
-from api_backend.views import HelloApiView, CollectClientData, SummonBlockApiView
+from .views import HelloApiView, CollectClientData, SummonBlockApiView
 
 urlpatterns = [
     path('hello/', HelloApiView.as_view(), name='hello'),

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import MenuBlock, InfoBlock, ButtonMenu, Variables
+from .models import MenuBlock, InfoBlock, ButtonMenu, Variables, ProductBlock
 
 
 class InlineButton(admin.TabularInline):
@@ -33,6 +33,13 @@ class InfoBlockAdmin(admin.ModelAdmin):
     search_fields = ('name', 'header_rus', 'header_kaz')
     list_filter = ('name',)
 
+@admin.register(ProductBlock)
+class ProductBlockAdmin(admin.ModelAdmin):
+    list_display = ('id', 'product_name', 'header_rus', 'header_kaz')
+
+
+
+
 @admin.register(ButtonMenu)
 class ButtonMenuAdmin(admin.ModelAdmin):
     list_display = ('id', 'menu', 'title_rus', 'title_kaz', 'info_block', 'menu_block', 'button_number')
@@ -41,9 +48,14 @@ class ButtonMenuAdmin(admin.ModelAdmin):
     list_filter = ('menu', 'info_block', 'menu_block')
 
 
+
+
+
 @admin.register(Variables)
 class VariablesAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'reply_type', 'rus', 'kaz')
     list_display_links = ('id', 'name')
     search_fields = ('name', 'rus', 'kaz')
     list_filter = ('reply_type',)
+
+
