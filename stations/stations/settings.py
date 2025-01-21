@@ -23,6 +23,7 @@ else:
     raise ValueError('VERSION can be either DEV or DEPLOY')
 
 WSGI_APPLICATION = 'stations.wsgi.application'
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',

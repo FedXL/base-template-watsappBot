@@ -1,5 +1,7 @@
 from django.db import models
 from clients.models import Client
+from shop.utils import cart_buttons_generator
+
 
 class Cart(models.Model):
     client = models.OneToOneField(Client, on_delete=models.CASCADE, related_name="cart_related", null=True, blank=True)
@@ -11,49 +13,13 @@ class Cart(models.Model):
     def total_price(self):
         return sum(item.total_price for item in self.cart_items.all())
 
-    def shopping_card_content(self):
-        cart_items = self.cart_items.all()
-        result = {}
-        if not cart_items:
-            return result
-        for item in cart_items:
-            result[item.product.product_name] = item.to_dict()
-        result["total_price"] = self.total_price
-        return result
 
-    def shopping_card_buttons(self, language):
-        buttons = {
-                    "title": "Корзина",
-                    "rows": [
-                        {
-                            "title": "Оформить заказ",
-                            "value": "create_order",
-                            "description": "Оформить заказ"
-                        },
-                        {
-                            "title": "Очистить корзину",
-                            "value": "clear_cart",
-                            "description": "Очистить корзину"
-                        }
-                    ]
-        }
 
+    def shopping_cart_buttons(self, language):
         items = self.cart_items.prefetch_related('product').all()
-
-
-        for item in items:
-            product_name = item.product.header_rus if language == 'rus' else item.product.header_kaz
-            buttons["rows"].append({
-                "title": f"{product_name} - {item.quantity} шт.",
-                "value": f"create_productblock_{item.product.product_name}",
-                "description": f"{item.total_price} тг."
-            })
+        summary_price = self.total_price
+        buttons = cart_buttons_generator(items,summary_price, language)
         return buttons
-
-
-
-
-
 
 
 class CartItem(models.Model):
@@ -65,12 +31,15 @@ class CartItem(models.Model):
     def total_price(self):
         return self.quantity * self.product.price
 
+
     def __str__(self):
         return f"{self.quantity} x {self.product.name}"
 
     def to_dict(self):
         return {
             "product": self.product.product_name,
+            "product_header_kaz": self.product.header_kaz,
+            "product_header_rus": self.product.header_rus,
             "quantity": self.quantity,
             "price": self.product.price,
             "total_price": self.total_price

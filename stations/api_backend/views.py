@@ -1,14 +1,10 @@
 import logging
-
-from django.conf import settings
 from django.db import transaction
-from rest_framework.mixins import CreateModelMixin
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.status import is_success
 from rest_framework.views import APIView
 from api_backend.models import MenuBlock, InfoBlock, Variables, ProductBlock
-from api_backend.utils import infoblock_serializer, client_card_serializer, create_product_block_data
+from api_backend.utils import infoblock_serializer, client_cart_serializer, create_product_block_data
 from clients.models import Client
 from shop.models import Cart
 
@@ -36,14 +32,12 @@ class CollectClientData(APIView):
         phone = request.data.get('phone')
         session_v = request.data.get('session')
         username = request.data.get('username')
-
         if not username and not phone:
             username = 'Tester'
             phone = '1234567890'
         if username == 'None' and phone == 'None':
             username = 'Tester'
             phone = '1234567890'
-
         try:
             with transaction.atomic():
                 client, created = Client.objects.update_or_create(
@@ -76,11 +70,21 @@ def menu_serializer(menu, language):
     if menu == 'main':
         if language =='rus':
             rows.append({
+                "title": "Корзина",
+                "value": "create_special_menu_cart",
+                "description": "Просмотреть содержимое корзины"
+                })
+            rows.append({
                 "title": "Назад",
                 "value": "to_language_choice",
                 "description": "Назад к выбору языка"
                 })
         else:
+            rows.append({
+                "title": "Себет",
+                "value": "create_special_menu_cart",
+                "description": "Себеттің мазмұнын көру"
+                })
             rows.append({
                 "title": "Артқа",
                 "value": "to_language_choice",
@@ -113,7 +117,6 @@ class SummonBlockApiView(APIView):
             menu_result['menu_buttons'] = [menu_buttons]
             result_data['menu'] = menu_result
             return Response(result_data, status=200)
-
 
         elif 'create_infoblock' in action:
             """основная фишка что в меню три кнопки будет"""
@@ -155,7 +158,7 @@ class SummonBlockApiView(APIView):
                 cart_item.quantity += 1
                 cart_item.save()
             is_success, comment_or_result = create_product_block_data(action=action,
-                                                                        language=language,
+                                                                       language=language,
                                                                         user_phone=user_phone,
                                                                         result_data=result_data)
             if not is_success:
@@ -189,32 +192,37 @@ class SummonBlockApiView(APIView):
             self.logger.info(f'Creating special menu {action}')
             what_kind_of_special = action.replace('create_special_menu_', '')
             self.logger.info(f'Creating special menu {what_kind_of_special}')
-            result_data['what_next'] = 'create_menu_cart'
-            client = Client.objects.filter(phone=user_phone).first()
-            cart_buttons = client.cart_related.shopping_card_buttons(language)
-            content = client.cart_related.shopping_card_content()
-            result_data['menu']= {
-                "menu_block": {
-                    "header": "Корзина",
-                    "body": f'Содержимое корзины {str(content)}',
-                    "footer": 'заказать или очистить корзину',
-                    "list_title": "Меню",
-                    "section_title": "Меню"
-                },
-                "menu_buttons": [cart_buttons]
-            }
 
 
+            match what_kind_of_special:
+                case 'cart':
+                    result_data['what_next'] = 'create_menu_cart'
+                    client = Client.objects.filter(phone=user_phone).first()
+                    cart_buttons = client.cart_related.shopping_cart_buttons(language)
+                    summary_price = client.cart_related.total_price
+                    cart_name = Variables.objects.filter(name='cart').first().rus if language == 'rus' else Variables.objects.filter(name='cart').first().kaz
+                    if summary_price == 0:
+                        cart_body = 'Корзина пуста'
+                    else:
+                        cart_body = f'Итого: {summary_price} ₸.'
 
-            return Response(result_data, status=200)
+                    result_data['menu']= {
+                        "menu_block": {
+                            "header": cart_name,
+                            "body": cart_body,
+                            "footer": 'заказать или очистить корзину',
+                            "list_title": "В корзину",
+                            "section_title": "Корзина"
+                        },
+                        "menu_buttons": [cart_buttons]
+                    }
+                    return Response(result_data, status=200)
 
 
         elif action == 'to_language_choice':
             self.logger.info(f'Going to language choice')
             result_data['what_next'] = action
             return Response(result_data, status=200)
-
-
 
 
 
@@ -250,9 +258,6 @@ class SummonBlockApiView(APIView):
                 'infoblock_block': {'header': operator_header, 'footer': operator_footer}
             }
             return Response(result_data, status=200)
-
-
-
         else:
             return Response({'message': 'Action not found!'}, status=404)
 

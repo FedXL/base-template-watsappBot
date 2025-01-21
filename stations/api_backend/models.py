@@ -102,7 +102,6 @@ class ButtonMenu(models.Model):
     title_kaz = models.CharField(max_length=23, verbose_name="Текст в кнопке на казахском",null=True, blank=True)
     description_rus = models.CharField(max_length=70, verbose_name="Описание на русском",null=True, blank=True)
     description_kaz = models.CharField(max_length=70, verbose_name="Описание на казахском",null=True, blank=True)
-
     button_number = models.IntegerField(verbose_name="Порядковый номер", default=0)
 
 
@@ -115,6 +114,7 @@ class ButtonMenu(models.Model):
                                       related_name='product_button_reverse',
                                       verbose_name="При нажатии переход в этот продукт",
                                       null=True, blank=True)
+
 
 
     def clean(self):

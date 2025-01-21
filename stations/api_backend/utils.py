@@ -42,8 +42,7 @@ def infoblock_serializer(infoblock_name, language, for_operator_link = False)-> 
     return infoblock_block , buttons
 
 
-
-def client_card_serializer(client):
+def client_cart_serializer(client):
     result_dict = {}
     assert isinstance(client, Client), "client must be an instance of Client"
     cart = client.cart_related
@@ -64,9 +63,8 @@ def create_product_block_data(action,
     if not client:
         return False, 'Client not found!'
 
-    cart_dict = client_card_serializer(client)
+    cart_dict = client_cart_serializer(client)
     product_block_result = {}
-
     product_name = result_data.get('product_name', None)
 
     if cart_dict:
@@ -79,11 +77,11 @@ def create_product_block_data(action,
     product_block_dict = product_block.block_to_dict(language)
     try:
         if language == 'rus':
-            go_to_card_text = Variables.objects.filter(name='go_to_card').first().rus
+            go_to_card_text = Variables.objects.filter(name='cart').first().rus
         elif language == 'kaz':
-            go_to_card_text = Variables.objects.filter(name='go_to_card').first().kaz
+            go_to_card_text = Variables.objects.filter(name='cart').first().kaz
     except:
-        go_to_card_text = 'CARD'
+        go_to_card_text = 'CART'
     product_block_result['infoblock_block'] = product_block_dict
     buttons = [
         {
@@ -101,7 +99,8 @@ def create_product_block_data(action,
             "value": f"remove_from_cart_{product_name}"
         })
         body = product_block_result['infoblock_block']['body']
-        body = body + f"{str(product_data)}"
+        summary = int(product_data.get('total_price')) * int(product_data.get('quantity'))
+        body = body + f"Стоимость {product_data.get('price')} Х {product_data.get('quantity')} = {summary} ₸."
         product_block_result['infoblock_block']['body'] = body
 
     product_block_result['buttons'] = buttons
