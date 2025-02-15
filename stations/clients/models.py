@@ -11,6 +11,8 @@ class Client(models.Model):
     comment = models.TextField(null=True, blank=True, verbose_name='Комментарии о посетителе',
                                default='Нет комментариев')
 
+    address = models.CharField(max_length=400, verbose_name="Адрес", null=True, blank=True)
+
 
     def __str__(self):
         return self.username

@@ -1,0 +1,78 @@
+
+ {
+	"what_next": "create_menu_cart",
+	"menu": {
+		"menu_block": {
+			"header": "Корзина",
+			"body": "Итого: 121730.00 ₸.",
+			"footer": "заказать или очистить корзину",
+			"list_title": "В корзину",
+			"section_title": "Корзина"
+		},
+		"menu_buttons": [
+			{
+				"title": "Корзина",
+				"rows": [
+					{
+						"title": "Лед пищевой Nomad 2 кг",
+						"value": "create_productblock_ice",
+						"description": " 750.00 Х 4 = 3000.00 ₸."
+					},
+					{
+						"title": "Вода Nomad 18.9л",
+						"value": "create_productblock_water_19L",
+						"description": " 950.00 Х 5 = 4750.00 ₸."
+					},
+					{
+						"title": "Кулер для воды",
+						"value": "create_productblock_water_cooler",
+						"description": " 56990.00 Х 2 = 113980.00 ₸."
+					},
+					{
+						"title": "Оформить заказ",
+						"value": "create_order",
+						"description": "Нажмите сюда , что бы оформить заказ. Cумма к оплате: 121730.00 ₸."
+					},
+					{
+						"title": "Очистить корзину",
+						"value": "clear_cart",
+						"description": "Это действие удалит все товары из корзины."
+					},
+					{
+						"title": "Вернуться",
+						"value": "create_menu_main",
+						"description": "Это действие вернет вас в главное меню"
+					}
+				]
+			}
+		]
+	}
+}
+
+
+{
+	"what_next": "create_productblock_electro_pump",
+	"product_name": "electro_pump",
+	"infoblock": {
+		"infoblock_block": {
+			"header": "Электрическая помпа для воды",
+			"body": "Электрическая помпа для водыСтоимость 0 Х 0 = 0 ₸.",
+			"footer": "Электрическая помпа для воды"
+		},
+		"buttons": [
+			{
+				"title": "collect quantity",
+				"value": "collectquantity_electro_pump"
+			},
+			{
+				"title": "Корзина",
+				"value": "create_special_menu_cart"
+			},
+			{
+				"title": "comeback to menu",
+				"value": "create_menu_main"
+			}
+		],
+		"image_url": "https://nurbot.kz/water/media/products/electro_pomp.png"
+	}
+}
