@@ -8,6 +8,7 @@ def cart_buttons_generator(items,cart_summary,language):
     variables = {var.name: var for var in Variables.objects.filter(name__in=required_variables)}
 
     cart_name = getattr(variables['cart'], language)
+
     submit_order = getattr(variables['submit_order'], language)
     submit_order_description = getattr(variables['submit_order_description'], language)
 
@@ -26,12 +27,17 @@ def cart_buttons_generator(items,cart_summary,language):
 
 
     submit_order_description = f"{submit_order_description} {cart_summary} ₸."
+    comeback_button = {'title': comeback,
+                       'value': 'create_menu_main',
+                       'description': comeback_description}
 
-    comeback_button = {'title': comeback, 'value': 'create_menu_main', 'description': comeback_description}
-    submit_order_button = {'title': submit_order, 'value': 'create_order', 'description': submit_order_description}
-    clear_cart_button = {'title': clean_cart, 'value': 'clear_cart', 'description': clean_cart_description}
+    submit_order_button = {'title': submit_order,
+                           'value': 'datacollector|ask_address',
+                           'description': submit_order_description}
 
-
+    clear_cart_button = {'title': clean_cart,
+                         'value': 'clear_cart',
+                         'description': clean_cart_description}
 
     if items_count == 0:
         base_buttons['rows'].append(comeback_button)

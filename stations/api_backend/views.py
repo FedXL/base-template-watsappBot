@@ -3,7 +3,7 @@ from django.db import transaction
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from api_backend.handlers.ask_way import collect_data_before_order
 from api_backend.handlers.collect_data.collect_cart_quantity import collect_product_quantity_way
 from api_backend.models import MenuBlock, InfoBlock, Variables, ProductBlock
 from api_backend.replies import R, replies_text
@@ -11,19 +11,15 @@ from api_backend.utils import infoblock_serializer, client_cart_serializer, crea
 from clients.models import Client
 from shop.models import Cart
 
-
 class HelloApiView(APIView):
     def get(self, request):
         return Response({'message': 'Hello World!'})
 
-
 class SummonMenu(APIView):
     permission_classes = [IsAuthenticated]
-
     def post(self, request):
         token = request.data.get('token')
         return Response({'message': 'Summon Menu!'})
-
 
 class CollectClientData(APIView):
     permission_classes = [IsAuthenticated]
@@ -93,11 +89,14 @@ def menu_serializer(menu, language):
                 "value": "to_language_choice",
                 "description": "Тілді таңдауға қайту"
             })
+
     menu_buttons['rows'] = rows
+
     return menu_block, menu_buttons
 
 
 class SummonBlockApiView(APIView):
+
     permission_classes = [IsAuthenticated]
     logger = logging.getLogger('Views| Summon')
 
@@ -106,7 +105,7 @@ class SummonBlockApiView(APIView):
         if request.data == None:
             return Response({'message': 'Data not found!'}, status=404)
         action = request.data.get('what_next',None)
-        language = request.data.get('language',None)
+        language = request.data.get('language', None)
         user_phone = request.data.get('user_phone', None)
         self.logger.info(f'SUMMON BLOCK API Action: {request.data}')
         if not language or language == 'None':
@@ -132,6 +131,7 @@ class SummonBlockApiView(APIView):
             result_data['menu'] = menu_result
             return Response(result_data, status=200)
 
+
         elif 'create_infoblock' in action:
             """основная фишка что в меню три кнопки будет"""
             self.logger.info(f'Creating infoblock {action}')
@@ -143,6 +143,7 @@ class SummonBlockApiView(APIView):
             infoblock_result['buttons'] = buttons
             result_data['infoblock'] = infoblock_result
             return Response(result_data, status=200)
+
 
         elif 'create_productblock_' in action:
             """основная фишка что в меню (три) кнопки будет по управлению корзиной"""
@@ -172,8 +173,6 @@ class SummonBlockApiView(APIView):
             infoblock = {'body':body_text}
             result_data['infoblock'] = {'infoblock_block': infoblock}
             return Response(result_data, status=200)
-
-
 
 
         elif 'remove_from_cart_' in action:
@@ -216,7 +215,6 @@ class SummonBlockApiView(APIView):
                         cart_body = 'Корзина пуста'
                     else:
                         cart_body = f'Итого: {summary_price} ₸.'
-
                     result_data['menu'] = {
                         "menu_block": {
                             "header": cart_name,
@@ -234,6 +232,26 @@ class SummonBlockApiView(APIView):
             result_data['what_next'] = action
             return Response(result_data, status=200)
 
+        elif 'datacollector' in action:
+            self.logger.info(f'Collecting data')
+            comment = result_data.get('what_next_comment', None)
+            collected_data = result_data.get('what_next_details', None)
+            the_way = action.split('|')[1]
+            if the_way in ['ask_address','catch_address',
+                           'ask_about_container','ask_about_delivery',
+                           'ask_about_payment']:
+
+                result = collect_data_before_order(
+                                                the_way=the_way,
+                                                what_next_comment=comment,
+                                                what_next_details=collected_data,
+                                                language=language,
+                                                user_phone=user_phone
+                )
+                return Response(result, status=200)
+            else:
+                return Response({'message': 'Action not found!'}, status=404)
+
         elif "create_operator_link_from_" in action:
             self.logger.info(f'Creating operator link from {action}')
             result_data['what_next'] = action
@@ -250,26 +268,38 @@ class SummonBlockApiView(APIView):
                 operator_footer = Variables.objects.filter(name='operator_footer').first().rus
 
             elif language == 'kaz':
+
                 prefix = 'Сәлеметсіз бе, маған ақпарат керек'
                 info = infoblock.header_kaz
                 operator_header = Variables.objects.filter(name='operator_header').first().kaz
                 operator_footer = Variables.objects.filter(name='operator_footer').first().kaz
+
             if info:
+
                 text = prefix + info
                 text = text.replace(' ', '%20')
                 link = f"https://wa.me/{operator_phone}?text={text}"
+
             else:
                 link = f"https://wa.me/{operator_phone}"
+
             self.logger.warning(f"infoblock name {infoblock_name}")
-            infoblock_block, buttons = infoblock_serializer(infoblock_name, language, for_operator_link=True)
+
+            infoblock_block, buttons = infoblock_serializer(infoblock_name,
+                                                            language,
+                                                            for_operator_link=True)
 
             result_data['infoblock'] = {
                 'link': link,
                 'buttons': buttons,
-                'infoblock_block': {'header': operator_header, 'footer': operator_footer}
+                'infoblock_block': {
+                    'header': operator_header,
+                    'footer': operator_footer
+                }
             }
 
             return Response(result_data, status=200)
+
         else:
             body = f'Action {action} not found!'
             return Response({'message': 'Action not found!', 'what_next': body}, status=404)
@@ -279,16 +309,17 @@ class IsDead(APIView):
     def get(self, request):
         return Response({'message': 'I am not dead!'})
 
-
-
 class CollectCartQuantity(APIView):
     permission_classes = [IsAuthenticated]
     logger = logging.getLogger('Views| Collect Data Text')
 
     def post(self, request):
         result_data = {}
+
         if request.data == None:
-            return Response({'message': 'Data not found!'}, status=404)
+
+            return Response(data={'message': 'Data not found!'}, status=404)
+
         action = request.data.get('what_next',None)
         language = request.data.get('language',None)
         user_phone = request.data.get('user_phone', None)
@@ -310,20 +341,24 @@ class CollectCartQuantity(APIView):
         if 'text' in action and 'cart_quantity' in action:
             product, what_next, comment = collect_product_quantity_way(action=action, language=language,
                                                                     user_phone=user_phone, text_data=text_data)
-            datta = {"what_next": what_next,'product':product}
+            datta = {"what_next": what_next,
+                     'product_name':product}
             result_data['product_name'] = product
             result_data['what_next_from_way']= what_next
-
-
 
             if what_next:
                 is_success, comment_or_result = create_product_block_data(action=action,
                                                                       language=language,
                                                                       user_phone=user_phone,
                                                                       result_data=datta)
-                result_data['what_next'] = comment_or_result
-                result_data['action'] = action
-                return Response(result_data, status=200)
+                if is_success:
+                    result_data = {**result_data, **comment_or_result, 'action': action}
+                    return Response(result_data, status=200)
+                else:
+                    what_next = ("collect_data_text_" + action.replace('collect_data_text_', '').split('|')[0]
+                             + f"|cart_quantity|{comment}")
+                    return Response({'error': comment,
+                     'what_next': what_next}, status=404)
             else:
                 what_next = ("collect_data_text_" + action.replace('collect_data_text_', '').split('|')[0]
                              + f"|cart_quantity|{comment}")

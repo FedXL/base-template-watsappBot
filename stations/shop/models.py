@@ -29,6 +29,8 @@ class CartItem(models.Model):
     product = models.ForeignKey('api_backend.ProductBlock', on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
 
+
+
     @property
     def total_price(self):
         return self.quantity * self.product.price
@@ -54,13 +56,14 @@ class Order(models.Model):
     status = models.CharField(max_length=50, choices=[("pending", "pending"),
                                                       ("completed", "completed"),
                                                       ("canceled", "canceled")], default="pending")
-
+    time_spot = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
 
 
     @property
     def total_price(self):
         return sum(item.total_price for item in self.cart.cart_items.all())
+
     def __str__(self):
         return f"Order {self.id} - {self.user.username} - {self.status}"
 
