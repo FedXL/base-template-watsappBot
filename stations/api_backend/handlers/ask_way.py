@@ -126,39 +126,39 @@ def get_delivery_slots():
             "rows": [],
         }
     ]
-    start_time = now()
+    tommorow_after = now()
     rows = []
 
-    if start_time.hour < 13:
+    if tommorow_after.hour <= 13:
         rows.append(
             {
                 "title": "Сегодня с 15:00 до 20:00",
                 "value": "today_15_20",
-                "description": f"{start_time.day} с 15:00 до 20:00"}
+                "description": f"{tommorow_after.day}.{tommorow_after.month}.{tommorow_after.year} с 15:00 до 20:00"}
         )
-        tommorow = start_time + timedelta(days=1)
+        tommorow_after = tommorow_after + timedelta(days=1)
 
     rows.append(
         {
             "title": "Завтра с 9:00 до 15:00",
             "value": "tomorrow_9_15",
-            "description": f"{tommorow.day} с 9:00 до 15:00"
+            "description": f"{tommorow_after.day}.{tommorow_after.month}.{tommorow_after.year} с 9:00 до 15:00"
         }
     )
     rows.append(
         {
             "title": "Завтра с 15:00 до 20:00",
             "value": "tomorrow_15_20",
-            "description": f"{tommorow.day} с 15:00 до 20:00"
+            "description": f"{tommorow_after.day}.{tommorow_after.month}.{tommorow_after.year} с 15:00 до 20:00"
         }
     )
-    tommorow_after = tommorow + timedelta(days=1)
+    tommorow_after = tommorow_after + timedelta(days=1)
 
     rows.append(
         {
             "title": "Послезавтра с 9:00 до 15:00",
             "value": "aftertomorrow_9_15",
-            "description": f"{tommorow_after} с 9:00 до 15:00"
+            "description": f"{tommorow_after.day}.{tommorow_after.month}.{tommorow_after.year} с 9:00 до 15:00"
         }
     )
 
@@ -166,13 +166,29 @@ def get_delivery_slots():
         {
             "title": "Послезавтра с 15:00 до 20:00",
             "value": "aftertomorrow_15_20",
-            "description": f"{tommorow_after} с 15:00 до 20:00"
+            "description": f"{tommorow_after.day}.{tommorow_after.month}.{tommorow_after.year} с 15:00 до 20:00"
         }
     )
+    buttons[0]['rows'] = rows
+    return buttons
 
 
+def create_time_block(language):
+    menu = {}
 
+    menu_block = {
+        "header": replies_text(R.AskBlock.SPOT_HEADER, language),
+        "body": replies_text(R.AskBlock.SPOT_BODY, language),
+        "footer": replies_text(R.AskBlock.SPOT_FOOTER, language),
+        "list_title": replies_text(R.AskBlock.SPOT_TITLE, language),
+        "section_title": replies_text(R.AskBlock.SPOT_SECTION, language)
+    }
 
+    buttons = get_delivery_slots()
+    menu['what_next'] = 'create_menu'
+    menu['menu_block'] = menu_block
+    menu['menu_buttons'] = buttons
+    return menu
 
 def collect_data_before_order(the_way,
                               language,
@@ -194,7 +210,6 @@ def collect_data_before_order(the_way,
     match the_way:
         case "ask_address":
             """Спросить адрес"""
-
             address = client.address
             if address:
                 my_logger.info(f"Спросить адрес с кнопками")
@@ -211,27 +226,15 @@ def collect_data_before_order(the_way,
             result = no_buttons_address_block(language)
 
         case "catch_address":
+            """Поймать адрес и отправить на дата блок"""
             my_logger.info("Поймал Адрес")
             new_address = what_next_details
             client.address = new_address
             client.save()
-            menu = {}
 
-            menu_block = {
-                "header": replies_text(R.AskBlock.SPOT_HEADER, language),
-                "body": replies_text(R.AskBlock.SPOT_BODY, language),
-                "footer": replies_text(R.AskBlock.SPOT_FOOTER, language),
-                "list_title": replies_text(R.AskBlock.SPOT_TITLE, language),
-                "section_title": replies_text(R.AskBlock.SPOT_SECTION, language)
-            }
+            result = create_time_block(language)
 
-            buttons = get_delivery_slots()
 
-            menu['what_next'] = 'create_menu'
-            menu['menu_block'] = menu_block
-            menu['menu_buttons'] = buttons
-            result = menu
-            #FIXME
 
         case "address_confirmed":
             """у нас подтвержденный адрес тогда переходим к опросу про доставку"""
