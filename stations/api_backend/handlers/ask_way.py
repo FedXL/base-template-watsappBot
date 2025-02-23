@@ -1,12 +1,10 @@
-import logging
-from api_backend.replies import R, replies_text, SupportLogic
+
+from api_backend.replies import R, replies_text, SupportLogic, WATER_19L_BOTTLE
 from clients.models import Client
 from django.utils.timezone import now
 from datetime import timedelta, datetime
+from shop.models import Cart
 
-
-
-my_logger = logging.getLogger("datacollector")
 
 
 
@@ -53,7 +51,7 @@ def no_buttons_address_block(language):
 
 
 
-def with_buttons_address_block(language,address):
+def with_buttons_address_block(language, address):
 
     header = replies_text(R.AskBlock.ADDRESS_HEADER, language)
     body = replies_text(R.AskBlock.ADDRESS_BODY, language)
@@ -67,11 +65,11 @@ def with_buttons_address_block(language,address):
     buttons = [
         {
             "title": confirm_button,
-            "value": "datacollector|address_confirmed"
+            "value": "address_confirmed"
         },
         {
             "title": change_button,
-            "value": "datacollector|ask_address"
+            "value": "change_address"
         }
     ]
 
@@ -97,7 +95,7 @@ def with_buttons_address_block(language,address):
 
 
 
-def get_delivery_slots():
+def get_delivery_slots(language):
     """
     В телеге бот работает по принципу:  если заявку подают до 13:00
     то она падает на доставку на этот же день, с 15:00 до 20:00.
@@ -122,51 +120,50 @@ def get_delivery_slots():
     """
     buttons = [
         {
-            "title": "Доступные слоты",
+            "title": replies_text(R.AskBlock.SPOT_TITLE, language),
             "rows": [],
         }
     ]
-    tommorow_after = now()
+    tomorrow_after = now()
     rows = []
 
-    if tommorow_after.hour <= 13:
+    if tomorrow_after.hour <= 13:
         rows.append(
             {
-                "title": "Сегодня с 15:00 до 20:00",
-                "value": "today_15_20",
-                "description": f"{tommorow_after.day}.{tommorow_after.month}.{tommorow_after.year} с 15:00 до 20:00"}
+                "title": replies_text(R.AskBlock.TOMORROW_15_20,language),
+                "value": "datacollector|catch_time|today_15_20",
+                "description": f"{tomorrow_after.day}.{tomorrow_after.month}.{tomorrow_after.year} с 15:00 до 20:00"}
         )
-        tommorow_after = tommorow_after + timedelta(days=1)
+        tomorrow_after = tomorrow_after + timedelta(days=1)
 
     rows.append(
         {
-            "title": "Завтра с 9:00 до 15:00",
-            "value": "tomorrow_9_15",
-            "description": f"{tommorow_after.day}.{tommorow_after.month}.{tommorow_after.year} с 9:00 до 15:00"
+            "title": replies_text(R.AskBlock.TOMORROW_9_15, language),
+            "value": "datacollector|catch_time|tomorrow_9_15",
+            "description": f"{tomorrow_after.day}.{tomorrow_after.month}.{tomorrow_after.year} с 9:00 до 15:00"
         }
     )
     rows.append(
         {
-            "title": "Завтра с 15:00 до 20:00",
-            "value": "tomorrow_15_20",
-            "description": f"{tommorow_after.day}.{tommorow_after.month}.{tommorow_after.year} с 15:00 до 20:00"
+            "title": replies_text(R.AskBlock.TOMORROW_15_20, language),
+            "value": "datacollector|catch_time|tomorrow_15_20",
+            "description": f"{tomorrow_after.day}.{tomorrow_after.month}.{tomorrow_after.year} с 15:00 до 20:00"
         }
     )
-    tommorow_after = tommorow_after + timedelta(days=1)
+    tomorrow_after = tomorrow_after + timedelta(days=1)
 
     rows.append(
         {
-            "title": "Послезавтра с 9:00 до 15:00",
-            "value": "aftertomorrow_9_15",
-            "description": f"{tommorow_after.day}.{tommorow_after.month}.{tommorow_after.year} с 9:00 до 15:00"
+            "title": replies_text(R.AskBlock.AFTER_TOMORROW_9_15, language),
+            "value": "datacollector|catch_time|after_tomorrow_9_15",
+            "description": f"{tomorrow_after.day}.{tomorrow_after.month}.{tomorrow_after.year} с 9:00 до 15:00"
         }
     )
-
     rows.append(
         {
-            "title": "Послезавтра с 15:00 до 20:00",
-            "value": "aftertomorrow_15_20",
-            "description": f"{tommorow_after.day}.{tommorow_after.month}.{tommorow_after.year} с 15:00 до 20:00"
+            "title": replies_text(R.AskBlock.AFTER_TOMORROW_15_20, language),
+            "value": "datacollector|catch_time|after_tomorrow_15_20",
+            "description": f"{tomorrow_after.day}.{tomorrow_after.month}.{tomorrow_after.year} с 15:00 до 20:00"
         }
     )
     buttons[0]['rows'] = rows
@@ -184,25 +181,40 @@ def create_time_block(language):
         "section_title": replies_text(R.AskBlock.SPOT_SECTION, language)
     }
 
-    buttons = get_delivery_slots()
-    menu['what_next'] = 'create_menu'
+    buttons = get_delivery_slots(language)
     menu['menu_block'] = menu_block
     menu['menu_buttons'] = buttons
     return menu
+
+
+def how_many_bootle_you_need(cart:Cart):
+    items = cart.cart_items.all()
+    for item in items:
+        product_name = item.product.product_name
+        if product_name == WATER_19L_BOTTLE:
+            quantity = item.quantity
+            if quantity:
+                return quantity
+            else:
+                raise ValueError("Хрень какая то иди разбирайся в how_many_bootle_you_need")
+    return False
+
 
 def collect_data_before_order(the_way,
                               language,
                               user_phone,
                               what_next_comment=None,
                               what_next_details=None,
+                              parsing_variable=None,
+                              my_logger=None
                               ) -> dict:
     """
     the_way = catch_address (action=datacollecter|catch_address)
     what_next_comment = сообщение об ошибке
     what_next_details = содержимое
     """
-
-    result = None
+    my_logger.info(f"START collect_data_before_order: {the_way}")
+    result = {}
     client = Client.objects.filter(phone=user_phone).first()
     if not client:
         return {"error": "Клиент не найден"}
@@ -218,60 +230,79 @@ def collect_data_before_order(the_way,
                 my_logger.info(f"Спросить адрес без кнопок {user_phone}")
                 result = no_buttons_address_block(language)
 
-        case "change_address":
-            """Надо поменять адрес"""
-            header = replies_text(R.AskBlock.ADDRESS_HEADER, language)
-            client.address = None
-            client.save()
-            result = no_buttons_address_block(language)
+
 
         case "catch_address":
-            """Поймать адрес и отправить на дата блок"""
-            my_logger.info("Поймал Адрес")
-            new_address = what_next_details
-            client.address = new_address
-            client.save()
+            my_logger.info(f'start CATCH ADDRESS {what_next_details}')
+            """Поймать адрес -> опрос тайм слота"""
+            if what_next_details:
+                the_way_2 = what_next_details
+                if the_way_2 == 'change_address':
+                    my_logger.info('CATCH ADDRESS: change_address')
+                    result = no_buttons_address_block(language)
 
-            result = create_time_block(language)
+                    client.address = None
+                    client.save()
+                elif the_way_2 == 'address_confirmed':
+                    my_logger.info('CATCH ADDRESS: address_confirmed')
+                    result['menu'] = create_time_block(language)
+                    result['what_next'] = 'create_menu'
+                else:
+                    my_logger.info(f'CATCH ADDRESS: {what_next_details}')
 
+                    client.address = what_next_details
+                    client.save()
+                    result['menu'] = create_time_block(language)
+                    result['what_next'] = 'create_menu'
+            else:
+                raise ValueError("Что то пошло не так в catch_address")
 
 
         case "address_confirmed":
-            """у нас подтвержденный адрес тогда переходим к опросу про доставку"""
+            """у нас подтвержденный адрес -> опрос тайм слота"""
+            my_logger.info("Подтвержденный адрес затем тайм слот")
+            result['menu'] = create_time_block(language)
+            result['what_next'] = 'create_menu'
 
-            header = replies_text(R.AskBlock.ADDRESS_HEADER, language)
-            body = replies_text(R.AskBlock.ADDRESS_BODY, language)
-            footer = replies_text(R.AskBlock.ADDRESS_FOOTER, language)
+        case "catch_time":
+            my_logger.info('start CATCH TIME')
+            """Поймать время доставки и задать вопрос про  [тару <-> Подтвердить - создать заказ]"""
+            time = parsing_variable
+            cart = client.cart_related
+            cart.time_spot = time
+            cart.save()
 
-            infoblock = {
-                "header": header,
-                "body": body,
-                "footer": footer
-            }
+            result['what_next'] = 'create_infoblock'
+            how_many_19L_bootle = how_many_bootle_you_need(cart=cart)
+            my_logger.info(f"how_many_19L_bootle: {how_many_19L_bootle}")
+            if how_many_19L_bootle:
+                """Задаем вопрос про бутылки"""
+                body = replies_text(R.AskBlock.CONTAINER_BODY, language)
+                body = body.replace('bottle', str(how_many_19L_bootle))
+                infoblock_data = {
+                    "header": replies_text(R.AskBlock.CONTAINER_HEADER, language),
+                    "body": body,
+                    "footer": replies_text(R.AskBlock.CONTAINER_FOOTER, language),
 
-            result = {
-                'infoblock': {'infoblock_block': infoblock},
-                'support_logic': SupportLogic.NO_BUTTONS,
-                'next_action': 'datacollector|catch_address'}
+                }
+                result['infoblock'] = {"infoblock_block": infoblock_data,
+                                       "buttons": [
+                        {
+                            "title": replies_text(R.Navigate.YES, language),
+                            "value": "create_order"
+                        },
+                        {
+                            "title": replies_text(R.Navigate.NO, language),
+                            "value": "create_special_menu_cart"
+                        }
+                    ]}
+            else:
+                """create_order"""
+                result['what_next'] = 'create_order'
 
-        case "delivery_time_ask":
-            menu = {}
-
-            menu_block = {
-                "header": replies_text(R.AskBlock.SPOT_HEADER, language),
-                "body": replies_text(R.AskBlock.SPOT_BODY, language),
-                "footer": replies_text(R.AskBlock.SPOT_FOOTER, language),
-                "list_title": replies_text(R.AskBlock.SPOT_TITLE, language),
-                "section_title": replies_text(R.AskBlock.SPOT_SECTION, language)
-            }
-
-            buttons = get_delivery_slots()
-
-            menu['what_next'] = 'create_menu'
-            menu['menu_block'] = menu_block
-            menu['menu_buttons'] = buttons
-            result = menu
     return result
+
+
 
 
 

@@ -9,6 +9,7 @@ class Cart(models.Model):
                                   null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
+    spot = models.CharField(max_length=255, null=True, blank=True)
     def __str__(self):
         return f"Cart {self.id} - {self.client}"
 
@@ -28,6 +29,7 @@ class CartItem(models.Model):
     cart = models.ForeignKey(Cart, related_name="cart_items", on_delete=models.CASCADE)
     product = models.ForeignKey('api_backend.ProductBlock', on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
+    time_spot = models.DateTimeField(default=None, null=True, blank=True)
 
 
 
@@ -38,6 +40,7 @@ class CartItem(models.Model):
 
     def __str__(self):
         return f"{self.quantity} x {self.product.product_name}"
+
 
     def to_dict(self):
         return {
@@ -56,7 +59,7 @@ class Order(models.Model):
     status = models.CharField(max_length=50, choices=[("pending", "pending"),
                                                       ("completed", "completed"),
                                                       ("canceled", "canceled")], default="pending")
-    time_spot = models.DateTimeField()
+    time_spot = models.DateTimeField(default=None, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
 

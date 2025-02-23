@@ -115,8 +115,6 @@ class ButtonMenu(models.Model):
                                       verbose_name="При нажатии переход в этот продукт",
                                       null=True, blank=True)
 
-
-
     def clean(self):
         super().clean()
         result_list = [item for item in [self.info_block, self.menu_block, self.product_block] if item]

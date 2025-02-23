@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from api_backend.handlers.ask_way import collect_data_before_order
 from api_backend.handlers.collect_data.collect_cart_quantity import collect_product_quantity_way
+from api_backend.handlers.create_order import create_order
 from api_backend.models import MenuBlock, InfoBlock, Variables, ProductBlock
 from api_backend.replies import R, replies_text
 from api_backend.utils import infoblock_serializer, client_cart_serializer, create_product_block_data
@@ -196,6 +197,11 @@ class SummonBlockApiView(APIView):
                 return Response({'message': comment_or_result}, status=404)
             return Response(comment_or_result, status=200)
 
+        elif action =='create_order':
+            """создаем заказ"""
+            result = create_order(user_phone,self.logger)
+            self.logger.info(f'Creating order {result}')
+
         elif 'create_special_menu_' in action:
             """всякие хитрые блоки со списками"""
             self.logger.info(f'Creating special menu {action}')
@@ -225,6 +231,7 @@ class SummonBlockApiView(APIView):
                         },
                         "menu_buttons": [cart_buttons]
                     }
+
                     return Response(result_data, status=200)
 
         elif action == 'to_language_choice':
@@ -233,24 +240,35 @@ class SummonBlockApiView(APIView):
             return Response(result_data, status=200)
 
         elif 'datacollector' in action:
-            self.logger.info(f'Collecting data')
-            comment = result_data.get('what_next_comment', None)
-            collected_data = result_data.get('what_next_details', None)
+            self.logger.info(f'DATACOLLECTOR START')
+            parsing_variable = None
+            comment = request.data.get('what_next_comment', None)
+            collected_data = request.data.get('what_next_details', None)
             the_way = action.split('|')[1]
-            if the_way in ['ask_address','catch_address',
-                           'ask_about_container','ask_about_delivery',
-                           'ask_about_payment']:
-
-                result = collect_data_before_order(
-                                                the_way=the_way,
-                                                what_next_comment=comment,
-                                                what_next_details=collected_data,
-                                                language=language,
-                                                user_phone=user_phone
+            self.logger.info(f"the_way: {the_way}")
+            try:
+                parsing_variable = action.split('|')[2]
+                self.logger.info(f"parsing_variable: {parsing_variable}")
+            except:
+                self.logger.error(f"parsing_variable not found")
+                pass
+            try:
+                assert the_way in ['ask_address','catch_address','catch_time',
+                            'ask_about_container','ask_about_delivery',
+                            'ask_about_payment'], 'The way not found'
+            except:
+                return Response({'message': 'The way not found!'}, status=404)
+            self.logger.info(f'Collecting data before order {the_way}')
+            result = collect_data_before_order(
+                                the_way=the_way,
+                                what_next_comment=comment,
+                                what_next_details=collected_data,
+                                language=language,
+                                user_phone=user_phone,
+                                parsing_variable=parsing_variable,
+                                my_logger=self.logger
                 )
-                return Response(result, status=200)
-            else:
-                return Response({'message': 'Action not found!'}, status=404)
+            return Response(result, status=200)
 
         elif "create_operator_link_from_" in action:
             self.logger.info(f'Creating operator link from {action}')
@@ -266,16 +284,12 @@ class SummonBlockApiView(APIView):
                 prefix = 'Здравствуйте, меня интересует информация по '
                 operator_header = Variables.objects.filter(name='operator_header').first().rus
                 operator_footer = Variables.objects.filter(name='operator_footer').first().rus
-
             elif language == 'kaz':
-
                 prefix = 'Сәлеметсіз бе, маған ақпарат керек'
                 info = infoblock.header_kaz
                 operator_header = Variables.objects.filter(name='operator_header').first().kaz
                 operator_footer = Variables.objects.filter(name='operator_footer').first().kaz
-
             if info:
-
                 text = prefix + info
                 text = text.replace(' ', '%20')
                 link = f"https://wa.me/{operator_phone}?text={text}"
@@ -284,7 +298,6 @@ class SummonBlockApiView(APIView):
                 link = f"https://wa.me/{operator_phone}"
 
             self.logger.warning(f"infoblock name {infoblock_name}")
-
             infoblock_block, buttons = infoblock_serializer(infoblock_name,
                                                             language,
                                                             for_operator_link=True)
@@ -297,13 +310,14 @@ class SummonBlockApiView(APIView):
                     'footer': operator_footer
                 }
             }
-
             return Response(result_data, status=200)
 
         else:
             body = f'Action {action} not found!'
-            return Response({'message': 'Action not found!', 'what_next': body}, status=404)
-
+            return Response({'message': 'Action not found!',
+                             'action was':action,
+                             'what_next': body},
+                            status=404)
 
 class IsDead(APIView):
     def get(self, request):
@@ -317,7 +331,6 @@ class CollectCartQuantity(APIView):
         result_data = {}
 
         if request.data == None:
-
             return Response(data={'message': 'Data not found!'}, status=404)
 
         action = request.data.get('what_next',None)
@@ -362,5 +375,6 @@ class CollectCartQuantity(APIView):
             else:
                 what_next = ("collect_data_text_" + action.replace('collect_data_text_', '').split('|')[0]
                              + f"|cart_quantity|{comment}")
-                return Response({'error': comment,
-                     'what_next': what_next}, status=404)
+                return Response(data={'error': comment,
+                     'what_next': what_next},
+                                status=404)
