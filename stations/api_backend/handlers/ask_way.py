@@ -1,4 +1,4 @@
-
+from api_backend.handlers.create_order import create_order, create_text_success
 from api_backend.replies import R, replies_text, SupportLogic, WATER_19L_BOTTLE
 from clients.models import Client
 from django.utils.timezone import now
@@ -130,7 +130,7 @@ def get_delivery_slots(language):
     if tomorrow_after.hour <= 13:
         rows.append(
             {
-                "title": replies_text(R.AskBlock.TOMORROW_15_20,language),
+                "title": replies_text(R.AskBlock.TODAY_15_20,language),
                 "value": "datacollector|catch_time|today_15_20",
                 "description": f"{tomorrow_after.day}.{tomorrow_after.month}.{tomorrow_after.year} с 15:00 до 20:00"}
         )
@@ -208,11 +208,13 @@ def collect_data_before_order(the_way,
                               parsing_variable=None,
                               my_logger=None
                               ) -> dict:
+
     """
     the_way = catch_address (action=datacollecter|catch_address)
     what_next_comment = сообщение об ошибке
     what_next_details = содержимое
     """
+
     my_logger.info(f"START collect_data_before_order: {the_way}")
     result = {}
     client = Client.objects.filter(phone=user_phone).first()
@@ -249,7 +251,6 @@ def collect_data_before_order(the_way,
                     result['what_next'] = 'create_menu'
                 else:
                     my_logger.info(f'CATCH ADDRESS: {what_next_details}')
-
                     client.address = what_next_details
                     client.save()
                     result['menu'] = create_time_block(language)
@@ -269,7 +270,7 @@ def collect_data_before_order(the_way,
             """Поймать время доставки и задать вопрос про  [тару <-> Подтвердить - создать заказ]"""
             time = parsing_variable
             cart = client.cart_related
-            cart.time_spot = time
+            cart.spot = time
             cart.save()
 
             result['what_next'] = 'create_infoblock'
@@ -298,8 +299,10 @@ def collect_data_before_order(the_way,
                     ]}
             else:
                 """create_order"""
-                result['what_next'] = 'create_order'
-
+                is_created = create_order(phone=user_phone,
+                                          my_logger=my_logger)
+                my_logger.info(f'Creating order {is_created}')
+                result = create_text_success(language, is_created)
     return result
 
 

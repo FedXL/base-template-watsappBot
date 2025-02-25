@@ -21,9 +21,21 @@ class R:
 
     class Variables:
         QUANTITY = "quantity"
+        COLLECT_QUANTITY = "collect_quantity"
+        QUANTITY_ASK = "quantity_ask"
+        QUANTITY_BODY = "quantity_body"
+
         COLLECT_DATA_ASK = "collect_data_ask"
         COLLECT_DATA_TEXT = "collect_data_text"
 
+    class Cart:
+        HEADER = "cart"
+        BODY = "cart_body"
+        FOOTER = "cart_footer"
+
+        CLEAR_CART = "clear_cart"
+        LIST_TITLE = 'cart_list_title'
+        SECTION_TITLE = 'cart_section_title'
     class AskBlock:
         DELIVERY = "delivery_type_ask"
 

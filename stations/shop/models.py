@@ -29,9 +29,6 @@ class CartItem(models.Model):
     cart = models.ForeignKey(Cart, related_name="cart_items", on_delete=models.CASCADE)
     product = models.ForeignKey('api_backend.ProductBlock', on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
-    time_spot = models.DateTimeField(default=None, null=True, blank=True)
-
-
 
     @property
     def total_price(self):
@@ -59,7 +56,7 @@ class Order(models.Model):
     status = models.CharField(max_length=50, choices=[("pending", "pending"),
                                                       ("completed", "completed"),
                                                       ("canceled", "canceled")], default="pending")
-    time_spot = models.DateTimeField(default=None, null=True, blank=True)
+    time_spot = models.CharField(default=None, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
 
@@ -68,18 +65,15 @@ class Order(models.Model):
         return sum(item.total_price for item in self.cart.cart_items.all())
 
     def __str__(self):
-        return f"Order {self.id} - {self.user.username} - {self.status}"
+        return f"Order {self.id} - {self.client.username} - {self.status}"
 
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="order_items")
     product = models.ForeignKey('api_backend.ProductBlock', on_delete=models.DO_NOTHING)
-
     product_name = models.CharField(max_length=255,verbose_name='Название продукта')
     price = models.DecimalField(max_digits=10, decimal_places=2,verbose_name='Стоимость в тенге')
     quantity = models.PositiveIntegerField(default=1,verbose_name='Количество')
-
-
 
     @property
     def total_price(self):

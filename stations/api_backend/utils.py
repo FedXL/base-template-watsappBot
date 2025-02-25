@@ -1,6 +1,7 @@
 from typing import Union, Literal, Tuple
 from django.conf import settings
 from api_backend.models import InfoBlock, Variables, ProductBlock
+from api_backend.replies import replies_text, R
 from clients.models import Client
 
 
@@ -92,22 +93,22 @@ def create_product_block_data(action,
     product_block_result['infoblock_block'] = product_block_dict
 
     buttons = [{
-        "title": "collect quantity",
+        "title": replies_text(R.Variables.QUANTITY_ASK,language),
         "value": f"collectquantity_{product_name}"
     }, {
-        "title": go_to_card_text,
+        "title": replies_text('cart', language),
         "value": f"create_special_menu_cart",
     }, {
-        "title": "comeback to menu",
+        "title": replies_text(R.Navigate.COMEBACK, language),
         "value": f"create_menu_main"
     }]
 
     body = product_block_result['infoblock_block']['body']
     if product_data:
         summary = int(product_data.get('total_price')) * int(product_data.get('quantity'))
-        body = body + f"Стоимость {product_data.get('price')} Х {product_data.get('quantity')} = {summary} ₸."
+        body = body +" " + replies_text(R.Variables.QUANTITY_BODY,language) + f" {product_data.get('price')} Х {product_data.get('quantity')} = {summary} ₸."
     else:
-        body = body + f"Стоимость 0 Х 0 = 0 ₸."
+        body = body + " "+ replies_text(R.Variables.QUANTITY_BODY,language) + f" 0 ₸."
 
     product_block_result['infoblock_block']['body'] = body
     product_block_result['buttons'] = buttons

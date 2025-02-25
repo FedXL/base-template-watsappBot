@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from api_backend.handlers.ask_way import collect_data_before_order
 from api_backend.handlers.collect_data.collect_cart_quantity import collect_product_quantity_way
-from api_backend.handlers.create_order import create_order
+from api_backend.handlers.create_order import create_order, create_text_success
 from api_backend.models import MenuBlock, InfoBlock, Variables, ProductBlock
 from api_backend.replies import R, replies_text
 from api_backend.utils import infoblock_serializer, client_cart_serializer, create_product_block_data
@@ -199,8 +199,11 @@ class SummonBlockApiView(APIView):
 
         elif action =='create_order':
             """создаем заказ"""
-            result = create_order(user_phone,self.logger)
-            self.logger.info(f'Creating order {result}')
+
+            is_created = create_order(user_phone, self.logger)
+            self.logger.info(f'Creating order {is_created}')
+            result_data=create_text_success(language, is_created)
+            return Response(result_data, status=200)
 
         elif 'create_special_menu_' in action:
             """всякие хитрые блоки со списками"""
@@ -220,18 +223,18 @@ class SummonBlockApiView(APIView):
                     if summary_price == 0:
                         cart_body = 'Корзина пуста'
                     else:
-                        cart_body = f'Итого: {summary_price} ₸.'
+                        cart_body = replies_text(name=R.Cart.BODY, language=language)
+                        cart_body += f' {summary_price} ₸.'
                     result_data['menu'] = {
                         "menu_block": {
-                            "header": cart_name,
+                            "header": replies_text(name=R.Cart.HEADER, language=language),
                             "body": cart_body,
-                            "footer": 'заказать или очистить корзину',
-                            "list_title": "В корзину",
-                            "section_title": "Корзина"
+                            "footer": replies_text(name=R.Cart.FOOTER, language=language),
+                            "list_title": replies_text(name=R.Cart.LIST_TITLE, language=language),
+                            "section_title": replies_text(name=R.Cart.SECTION_TITLE, language=language)
                         },
                         "menu_buttons": [cart_buttons]
                     }
-
                     return Response(result_data, status=200)
 
         elif action == 'to_language_choice':
