@@ -94,7 +94,7 @@ def create_product_block_data(action,
 
     buttons = [{
         "title": replies_text(R.Variables.QUANTITY_ASK,language),
-        "value": f"collectquantity_{product_name}"
+        "value": f"datacollector|product_quantity|{product_name}"
     }, {
         "title": replies_text('cart', language),
         "value": f"create_special_menu_cart",

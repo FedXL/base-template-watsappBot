@@ -1,12 +1,11 @@
 from api_backend.handlers.create_order import create_order, create_text_success
+from api_backend.models import ProductBlock
 from api_backend.replies import R, replies_text, SupportLogic, WATER_19L_BOTTLE
+from api_backend.utils import create_product_block_data
 from clients.models import Client
 from django.utils.timezone import now
 from datetime import timedelta, datetime
-from shop.models import Cart
-
-
-
+from shop.models import Cart, CartItem
 
 """
 шпаргалка по меню 
@@ -37,7 +36,6 @@ from shop.models import Cart
 """
 
 
-
 def no_buttons_address_block(language):
     header = replies_text(R.AskBlock.ADDRESS_HEADER, language)
     infoblock = {
@@ -48,8 +46,6 @@ def no_buttons_address_block(language):
     return {'infoblock': {'infoblock_block': infoblock},
             'support_logic': SupportLogic.NO_BUTTONS,
             'what_next': 'datacollector|catch_address'}
-
-
 
 def with_buttons_address_block(language, address):
 
@@ -216,6 +212,7 @@ def collect_data_before_order(the_way,
     """
 
     my_logger.info(f"START collect_data_before_order: {the_way}")
+
     result = {}
     client = Client.objects.filter(phone=user_phone).first()
     if not client:
@@ -303,6 +300,71 @@ def collect_data_before_order(the_way,
                                           my_logger=my_logger)
                 my_logger.info(f'Creating order {is_created}')
                 result = create_text_success(language, is_created)
+        case "product_quantity":
+            my_logger.info(f'start PRODUCT QUANTITY {parsing_variable}')
+            if parsing_variable:
+                product_name = parsing_variable
+
+                result['what_next'] = f"datacollector|catch_product_quantity|{product_name}"
+                result['infoblock'] = {"infoblock_block":
+                                           {"header": replies_text(R.Quantity.COLLECT_QUANTITY, language=language)}}
+                result['support_logic'] = SupportLogic.NO_BUTTONS
+
+        case "catch_product_quantity":
+            my_logger.info(f'start CATCH PRODUCT QUANTITY {what_next_details}{parsing_variable}')
+            if what_next_details:
+                my_logger.info('catch branch -> create infoblock')
+                my_logger.critical(f'quantity text (what_next_details): {what_next_details}')
+                product_name = parsing_variable
+                try:
+                    count_of_product = int(what_next_details)
+                    if product_name == 'water_5L':
+                        if count_of_product < 10:
+                            result['what_next'] = f"datacollector|catch_product_quantity|{product_name}"
+                            result['infoblock'] = {"infoblock_block": {
+                                'header': replies_text(R.Quantity.SHOULD_BE_MORE_10,language)}
+                            }
+                            return result
+                    elif product_name == 'water_10L':
+                        if count_of_product < 5:
+                            result['what_next'] = f"datacollector|catch_product_quantity|{product_name}"
+                            result['infoblock'] = {"infoblock_block": {
+                                'header': replies_text(R.Quantity.SHOULD_BE_MORE_5, language)}
+                            }
+                            return result
+                except ValueError:
+                    result['what_next'] = f"datacollector|catch_product_quantity|{parsing_variable}"
+                    result['infoblock'] = {"infoblock_block":{'header': 'Количество товара должно быть числом'}}
+                    return result
+
+                cart = client.cart_related
+
+                product_item = ProductBlock.objects.filter(product_name=product_name).first()
+                if not product_item:
+                    my_logger.error(f'Product not found {product_name}')
+                    return {'error': 'Product not found'}
+
+                my_logger.info(f'we have product item: {product_item}')
+                cart = client.cart_related
+                cart_item = cart.cart_items.filter(product=product_item).first()
+                if not cart_item:
+                    cart_item = CartItem.objects.create(product=product_item,cart=cart, quantity=count_of_product)
+                else:
+                    cart_item.quantity = count_of_product
+                    cart_item.save()
+
+                result_data = {'product_name': product_name}
+                result_data['what_next'] = f'create_productblock_{product_name}'
+                is_success, comment_or_result=create_product_block_data(action=result_data['what_next'],
+                                              language=language,
+                                              user_phone=user_phone,
+                                              result_data=result_data)
+                if is_success:
+                    result = comment_or_result
+                else:
+                    my_logger.error(f'Product not found {product_name} {comment_or_result}')
+
+
     return result
 
 

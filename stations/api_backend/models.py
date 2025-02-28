@@ -29,11 +29,22 @@ class ProductBlock(Block):
         verbose_name_plural = "Товары"
 
     def block_to_dict(self, language):
-        body_text = self.body_rus if language == 'rus' else self.body_kaz
-        return {'header': self.header_rus if language == 'rus' else self.header_kaz,
-                'body': body_text,
-                'footer': self.footer_rus if language == 'rus' else self.footer_kaz
-        }
+        if language not in ['rus', 'kaz']:
+            raise ValueError("Invalid language. Expected 'rus' or 'kaz'.")
+        if language == 'kaz':
+            return {
+                'header': self.header_kaz,
+                'body': self.body_kaz,
+                'footer': self.footer_kaz
+            }
+        elif language == 'rus':
+            return {
+                'header': self.header_rus,
+                'body': self.body_rus,
+                'footer': self.footer_rus
+            }
+
+
 
 class MenuBlock(Block):
     name = models.CharField(max_length=100, verbose_name="Название (не отображается)",unique=True)
@@ -53,13 +64,26 @@ class MenuBlock(Block):
         return self.name
 
     def block_to_dict(self, language):
-        return {
-            'header': self.header_rus if language == 'rus' else self.header_kaz,
-            'body': self.body_rus if language == 'rus' else self.body_kaz,
-            'footer': self.footer_rus if language == 'rus' else self.footer_kaz,
-            'list_title': self.list_title_rus if language == 'rus' else self.list_title_kaz,
-            'section_title': self.section_title_rus if language == 'rus' else self.section_title_kaz
-        }
+        if language not in ['rus', 'kaz']:
+            raise ValueError("Invalid language. Expected 'rus' or 'kaz'.")
+
+        if language == 'kaz':
+            return {
+                'header': self.header_kaz,
+                'body': self.body_kaz,
+                'footer': self.footer_kaz,
+                'list_title': self.list_title_kaz,
+                'section_title': self.section_title_kaz
+            }
+        elif language == 'rus':
+            return {
+                'header': self.header_rus,
+                'body': self.body_rus,
+                'footer': self.footer_rus,
+                'list_title': self.list_title_rus,
+                'section_title': self.section_title_rus
+            }
+
 
 
 class InfoBlock(Block):
@@ -75,21 +99,33 @@ class InfoBlock(Block):
         return f"{self.name} - {self.header_rus}"
 
     def block_to_dict(self, language):
-        body_text = self.body_rus if language == 'rus' else self.body_kaz
+        if language == 'kaz':
+            body_text = self.body_kaz
+        elif language == 'rus':
+            body_text = self.body_rus
+        else:
+            raise ValueError("Invalid language. Expected 'rus' or 'kaz'.")
+
         if len(body_text) > 1020:
             body_01 = body_text[:1017] + '...'
             body = body_text[:1017]
+        else:
+            body_01 = None
+            body = body_text
+
+        if language == 'kaz':
             return {
-                'header': self.header_rus if language == 'rus' else self.header_kaz,
+                'header': self.header_kaz,
+                'body_01': body_01,
+                'body': body,
+                'footer': self.footer_kaz
+            }
+        elif language == 'rus':
+            return {
+                'header': self.header_rus,
                 'body_01': body_01,
                 'body':body,
-                'footer': self.footer_rus if language == 'rus' else self.footer_kaz
-            }
-        else:
-            return {
-                'header': self.header_rus if language == 'rus' else self.header_kaz,
-                'body': body_text,
-                'footer': self.footer_rus if language == 'rus' else self.footer_kaz
+                'footer': self.footer_rus
             }
 
 
@@ -139,12 +175,21 @@ class ButtonMenu(models.Model):
             return f"create_menu_{self.menu_block.name}"
 
     def to_dict(self, language):
+        if language =='rus':
+            return {
+                'title': self.title_rus,
+                'description': self.description_rus,
+                'value': self.extract_action()
+            }
+        elif language == 'kaz':
+            return {
+                'title': self.title_kaz,
+                'description': self.description_kaz,
+                'value': self.extract_action()
+            }
+        else:
+            raise ValueError("Invalid language. Expected 'rus' or 'kaz'.")
 
-        return {
-            'title': self.title_rus if language == 'rus' else self.title_kaz,
-            'description': self.description_rus if language == 'rus' else self.description_kaz,
-            'value': self.extract_action()
-        }
 
 class Variables(models.Model):
     name = models.CharField(max_length=100, verbose_name="Название реплики (ENG)", unique=True)

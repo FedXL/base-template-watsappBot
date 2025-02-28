@@ -52,29 +52,27 @@ def create_order(phone:str,my_logger) -> bool:
         return False
 
 
-def create_text_success(language,is_success):
+def create_text_success(language, is_success):
     """Отчет о заказе"""
     result  = {}
-    header = replies_text(R.AskBlock.ADDRESS_HEADER, language)
     if is_success:
 
         data = {
-            "header": "Статус заказа",
-            "body": "Ваш заказ успешно отправлен. Статус заказа можно посмотреть в разделе 'Мои заказы'",
-            "footer": "Нажмите для продолжения"
+            "header": replies_text(R.Order.SUCCESS_HEADER, language),
+            "body": replies_text(R.Order.SUCCESS_BODY,language=language),
+            "footer": replies_text(R.Order.SUCCESS_BODY,language=language)
         }
     else:
-
         data = {
-            "header": "Ошибка",
-            "body": "Что-то пошло не так. Попробуйте еще раз или обратитесь в службу поддержки",
-            "footer": "Нажмите для продолжения"
+            "header": replies_text(R.Order.FAIL_HEADER, language),
+            "body": replies_text(R.Order.FAIL_BODY,language=language),
+            "footer": replies_text(R.Order.FAIL_FOOTER,language=language)
         }
 
     result['infoblock'] = {"infoblock_block": data,
                            "buttons": [
                                {
-                                   "title": 'Вернуться',
+                                   "title": replies_text(R.Navigate.COMEBACK, language),
                                    "value": "create_special_menu_cart"
                                }
                            ]}

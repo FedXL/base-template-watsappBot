@@ -55,7 +55,8 @@ class CollectClientData(APIView):
         return Response({'message': message})
 
 
-def menu_serializer(menu, language):
+def menu_serializer(menu, language,my_logger):
+    my_logger.info(f'Menu serializer {menu} {language}')
     menu_buttons = {}
     menu_obj = MenuBlock.objects.filter(name=menu).first()
     if not menu_obj:
@@ -79,7 +80,7 @@ def menu_serializer(menu, language):
                 "value": "to_language_choice",
                 "description": "Назад к выбору языка"
             })
-        else:
+        elif language == 'kaz':
             rows.append({
                 "title": "Себет",
                 "value": "create_special_menu_cart",
@@ -124,7 +125,7 @@ class SummonBlockApiView(APIView):
             menu_result = {}
             result_data['what_next'] = action
             menu = action.replace('create_menu_', '')
-            menu_block, menu_buttons = menu_serializer(menu, language)
+            menu_block, menu_buttons = menu_serializer(menu, language, self.logger)
             if not menu_block:
                 return Response({'message': 'Menu not found!'})
             menu_result['menu_block'] = menu_block
@@ -160,22 +161,6 @@ class SummonBlockApiView(APIView):
                 return Response({'message': comment_or_result}, status=404)
             return Response(comment_or_result, status=200)
 
-        elif 'quantity' in action:
-            """Если ткнул на кнопку collect quantity отправляет на блок с catch text_data"""
-            self.logger.info(f'COLLECT  {action}')
-            product_name = action.replace('collectquantity_', '')
-            product_name = product_name.replace('collect_quantity_', '')
-            result_data['product_name'] = product_name
-            result_data['what_next'] = 'collect_data_text_' + product_name + "|" + "cart_quantity"
-            client = Client.objects.filter(phone=user_phone).first()
-            cart = client.cart_related
-            product = ProductBlock.objects.filter(product_name=product_name).first()
-            body_text = replies_text(name=R.Variables.COLLECT_DATA_ASK,language=language)
-            infoblock = {'body':body_text}
-            result_data['infoblock'] = {'infoblock_block': infoblock}
-            return Response(result_data, status=200)
-
-
         elif 'remove_from_cart_' in action:
             self.logger.info(f'Removing from cart {action}')
             product_name = action.replace('remove_from_cart_', '')
@@ -202,7 +187,7 @@ class SummonBlockApiView(APIView):
 
             is_created = create_order(user_phone, self.logger)
             self.logger.info(f'Creating order {is_created}')
-            result_data=create_text_success(language, is_created)
+            result_data = create_text_success(language, is_created)
             return Response(result_data, status=200)
 
         elif 'create_special_menu_' in action:
@@ -221,7 +206,7 @@ class SummonBlockApiView(APIView):
                         name='cart').first().rus if language == 'rus' else Variables.objects.filter(
                         name='cart').first().kaz
                     if summary_price == 0:
-                        cart_body = 'Корзина пуста'
+                        cart_body = replies_text(R.Cart.EMPTY_CART, language=language)
                     else:
                         cart_body = replies_text(name=R.Cart.BODY, language=language)
                         cart_body += f' {summary_price} ₸.'
@@ -258,7 +243,7 @@ class SummonBlockApiView(APIView):
             try:
                 assert the_way in ['ask_address','catch_address','catch_time',
                             'ask_about_container','ask_about_delivery',
-                            'ask_about_payment'], 'The way not found'
+                            'ask_about_payment','product_quantity','catch_product_quantity'], 'The way not found'
             except:
                 return Response({'message': 'The way not found!'}, status=404)
             self.logger.info(f'Collecting data before order {the_way}')
@@ -325,59 +310,63 @@ class SummonBlockApiView(APIView):
 class IsDead(APIView):
     def get(self, request):
         return Response({'message': 'I am not dead!'})
-
-class CollectCartQuantity(APIView):
-    permission_classes = [IsAuthenticated]
-    logger = logging.getLogger('Views| Collect Data Text')
-
-    def post(self, request):
-        result_data = {}
-
-        if request.data == None:
-            return Response(data={'message': 'Data not found!'}, status=404)
-
-        action = request.data.get('what_next',None)
-        language = request.data.get('language',None)
-        user_phone = request.data.get('user_phone', None)
-        text_data = request.data.get('text_data', None)
-
-        self.logger.info(f'Collecting data text... {request.data}')
-        if not language or language == 'None':
-            return Response({'message': 'Language not found!'}, status=404)
-
-        if not action or action == 'None':
-            return Response({'message': 'Action not found!'}, status=404)
-
-        if not user_phone or user_phone == 'None':
-            user_phone = '1234567890'
-
-        if not text_data or text_data == 'None':
-            text_data = 'No data'
-
-        if 'text' in action and 'cart_quantity' in action:
-            product, what_next, comment = collect_product_quantity_way(action=action, language=language,
-                                                                    user_phone=user_phone, text_data=text_data)
-            datta = {"what_next": what_next,
-                     'product_name':product}
-            result_data['product_name'] = product
-            result_data['what_next_from_way']= what_next
-
-            if what_next:
-                is_success, comment_or_result = create_product_block_data(action=action,
-                                                                      language=language,
-                                                                      user_phone=user_phone,
-                                                                      result_data=datta)
-                if is_success:
-                    result_data = {**result_data, **comment_or_result, 'action': action}
-                    return Response(result_data, status=200)
-                else:
-                    what_next = ("collect_data_text_" + action.replace('collect_data_text_', '').split('|')[0]
-                             + f"|cart_quantity|{comment}")
-                    return Response({'error': comment,
-                     'what_next': what_next}, status=404)
-            else:
-                what_next = ("collect_data_text_" + action.replace('collect_data_text_', '').split('|')[0]
-                             + f"|cart_quantity|{comment}")
-                return Response(data={'error': comment,
-                     'what_next': what_next},
-                                status=404)
+#
+# class CollectCartQuantity(APIView):
+#     permission_classes = [IsAuthenticated]
+#     logger = logging.getLogger('Views| Collect Data Text')
+#
+#     def post(self, request):
+#         result_data = {}
+#
+#         if request.data == None:
+#             return Response(data={'message': 'Data not found!'}, status=404)
+#
+#         action = request.data.get('what_next',None)
+#         language = request.data.get('language',None)
+#         user_phone = request.data.get('user_phone', None)
+#         text_data = request.data.get('text_data', None)
+#
+#         self.logger.info(f'Collecting data text... {request.data}')
+#         if not language or language == 'None':
+#             return Response({'message': 'Language not found!'}, status=404)
+#
+#         if not action or action == 'None':
+#             return Response({'message': 'Action not found!'}, status=404)
+#
+#         if not user_phone or user_phone == 'None':
+#             user_phone = '1234567890'
+#
+#         if not text_data or text_data == 'None':
+#             text_data = 'No data'
+#         if 'text' in action and 'cart_quantity' in action:
+#             product, what_next, comment = collect_product_quantity_way(action=action, language=language,
+#                                                                     user_phone=user_phone, text_data=text_data)
+#             self.logger.info(f'Collecting product quantity {product} | {what_next} | {comment}')
+#             datta = {"what_next": what_next,
+#                      'product_name':product}
+#             result_data['product_name'] = product
+#             result_data['what_next_from_way']= what_next
+#
+#             if what_next:
+#                 is_success, comment_or_result = create_product_block_data(action=action,
+#                                                                       language=language,
+#                                                                       user_phone=user_phone,
+#                                                                       result_data=datta)
+#                 if is_success:
+#                     result_data = {**result_data, **comment_or_result, 'action': action}
+#                     return Response(result_data, status=200)
+#                 else:
+#                     what_next = ("collect_data_text_" + action.replace('collect_data_text_', '').split('|')[0]
+#                              + f"|cart_quantity|{comment}")
+#                     self.logger.error(f'Error in collect_data_text in create_productblock: {comment}')
+#                     self.logger.error(f'Error in collect_data_text: {what_next}')
+#                     return Response({'error': comment,
+#                      'what_next': what_next}, status=404)
+#             else:
+#                 what_next = ("collect_data_text_" + action.replace('collect_data_text_', '').split('|')[0]
+#                              + f"|cart_quantity|{comment}")
+#                 self.logger.error(f'Error in незнаю где но : {comment}')
+#                 self.logger.error(f'Error in незнаю где но : {what_next}')
+#                 return Response(data={'error': comment,
+#                      'what_next': what_next},
+#                                 status=404)

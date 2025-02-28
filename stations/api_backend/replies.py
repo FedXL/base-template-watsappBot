@@ -19,6 +19,22 @@ class R:
         YES = "yes"
         NO = "no"
 
+    class Quantity:
+        SHOULD_BE_INT = 'should_be_int'
+        SHOULD_BE_MORE_10 = 'should_be_more_10'
+        SHOULD_BE_MORE_5 = 'should_be_more_5'
+
+        COLLECT_QUANTITY = 'collect_quantity'
+
+    class Order:
+        SUCCESS_HEADER = "order_success_header"
+        SUCCESS_BODY = "order_success_body"
+        SUCCESS_FOOTER = "order_success_footer"
+
+        FAIL_HEADER = "order_fail_header"
+        FAIL_BODY = "order_fail_body"
+        FAIL_FOOTER = "order_fail_footer"
+
     class Variables:
         QUANTITY = "quantity"
         COLLECT_QUANTITY = "collect_quantity"
@@ -36,6 +52,8 @@ class R:
         CLEAR_CART = "clear_cart"
         LIST_TITLE = 'cart_list_title'
         SECTION_TITLE = 'cart_section_title'
+        EMPTY_CART = 'empty_cart'
+
     class AskBlock:
         DELIVERY = "delivery_type_ask"
 
@@ -62,11 +80,7 @@ class R:
         class Buttons:
             CONFIRM = "address_ask_confirm"
             CHANGE = "address_ask_change"
-
         PAYMENT =  "payment_ask"
-
-
-
 
 
 class SupportLogic:

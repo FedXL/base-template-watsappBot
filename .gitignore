@@ -22,7 +22,7 @@ media/
 staticfiles/
 # PyCharm
 .idea/
-
+.env
 # VS Code
 .vscode/
 

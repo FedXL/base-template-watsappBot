@@ -1,5 +1,6 @@
 from typing import Any
 from api_backend.models import ProductBlock
+from api_backend.replies import replies_text, R
 from clients.models import Client
 from shop.models import CartItem, Cart
 
@@ -19,13 +20,21 @@ def collect_product_quantity_way(action:str,
     try:
         count_of_product = int(text_data)
     except ValueError:
-        return False,False, 'Должно быть число'
+        return False,False, replies_text(R.Quantity.SHOULD_BE_INT, language)
 
     product = action.replace('collect_data_text_','').split('|')[0]
     product_obj = ProductBlock.objects.filter(product_name=product).first()
 
+
+
     if not product_obj:
         return False, False, f"Кривой продукт {product}"
+
+    if product in ["water_10L","water_5L"]:
+        if product == "water_10L" and count_of_product < 5:
+            return False,False, replies_text(R.Quantity.SHOULD_BE_MORE_5, language)
+        elif product == 'water_5L' and count_of_product < 10:
+            return False, False, replies_text(R.Quantity.SHOULD_BE_MORE_10, language)
     client = Client.objects.filter(phone=user_phone).first()
     if not client:
         return False,False,'Клиент не найден'
